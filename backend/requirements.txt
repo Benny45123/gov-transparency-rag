@@ -1,0 +1,11 @@
+langchain-text-splitters
+langchain-google-genai
+langchain-pinecone
+pinecone
+pymupdf
+tqdm
+dotenv
+fastapi
+uvicorn
+pytesseract
+pillow
