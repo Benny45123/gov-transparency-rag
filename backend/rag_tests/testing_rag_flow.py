@@ -38,8 +38,8 @@ vector_store = PineconeVectorStore.from_texts(
     texts=chunks,
     embedding=embedding_model,
     index_name=index_name,
-    namespace="epstein-docs",   # namespace = logical partition inside index
-    metadatas=[                 # attach metadata to every chunk
+    namespace="epstein-docs",  
+    metadatas=[                 
         {
             "source": pdf_path,
             "chunk_index": i,

@@ -1,6 +1,7 @@
 langchain-text-splitters
 langchain-google-genai
 langchain-pinecone
+langchain
 pinecone
 pymupdf
 tqdm
