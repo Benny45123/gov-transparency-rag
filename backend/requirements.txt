@@ -10,3 +10,7 @@ fastapi
 uvicorn
 pytesseract
 pillow
+supabase
+beautifulsoup4
+asyncpg
+# uv pip install curl-cffi --only-binary=:all: --break-system-packages
