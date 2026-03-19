@@ -256,13 +256,13 @@ def process_pdf(pdf_info:dict,vector_store)->bool:
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
-def run_scraper():
+def run_scraper(dataset_pages:list[str]):
     """
     Main entry point.
     Scrapes all dataset pages, processes each PDF one at a time.
     Skips already-processed files using Postgres record.
     """
-    pages=DATASET_PAGES
+    pages=dataset_pages or DATASET_PAGES
     print("Loading vector store...")
     vector_store=setup_pinecone_index()
     print("✓ Vector store ready\n")
