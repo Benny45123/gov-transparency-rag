@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from curl_cffi import requests as cf_requests
 import time,random
 import json
+from pinecone import Pinecone
+import os
 # import browser_cookie3
 load_dotenv()
 BASE_URL   = "https://www.justice.gov/epstein/doj-disclosures"
@@ -264,7 +266,8 @@ def run_scraper(dataset_pages:list[str] | None):
     """
     pages=dataset_pages or DATASET_PAGES
     print("Loading vector store...")
-    vector_store=setup_pinecone_index()
+    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+    vector_store=setup_pinecone_index(pc)
     print("✓ Vector store ready\n")
     total_processed = 0
     total_skipped   = 0
@@ -295,7 +298,7 @@ def run_scraper(dataset_pages:list[str] | None):
     
 
 if __name__ == "__main__":
-    run_scraper()
+    run_scraper(None)
         
     
 
