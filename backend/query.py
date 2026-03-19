@@ -4,6 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from pinecone import Pinecone
 from dotenv import load_dotenv
 import os
+import re
 load_dotenv()
 INDEX_NAME    = "gov-transparency-index"
 NAMESPACE     = "epstein-docs"
@@ -23,14 +24,53 @@ def load_vector_store()->PineconeVectorStore:
     return vector_store
 def retreive(vector_store:PineconeVectorStore,question:str)->list:
     """
-    Embed the query and return top_k similar chunks from vectordb
+    Detect what type of question it is
+    and filter Pinecone results accordingly.
     """
-    result=vector_store.similarity_search(
-        query=question,
-        k=TOP_K,
-        namespace=NAMESPACE
-    )
-    return result
+    q = question.lower()
+
+    # detect question type
+    is_numerical = any(w in q for w in [
+        "how much", "how many", "amount", "total",
+        "cost", "paid", "price", "number of", "count"
+    ])
+    is_date = any(w in q for w in [
+        "when", "date", "year", "month", "timeline"
+    ])
+    is_table = any(w in q for w in [
+        "list", "table", "all", "who were", "names of"
+    ])
+
+    # build metadata filter for Pinecone
+    # only search chunks that are likely to have the answer
+    pinecone_filter = {}
+
+    if is_numerical:
+        pinecone_filter = {"has_numbers": True}
+    elif is_date:
+        pinecone_filter = {"has_dates": True}
+    elif is_table:
+        pinecone_filter = {"has_table": True}
+
+    # search with or without filter
+    if pinecone_filter:
+        results = vector_store.similarity_search(
+            query=question,
+            k=5,
+            filter=pinecone_filter,    # ← Pinecone metadata filter
+            namespace="epstein-docs"
+        )
+        # fallback to unfiltered if no results
+        if not results:
+            results = vector_store.similarity_search(
+                query=question, k=5, namespace="epstein-docs"
+            )
+    else:
+        results = vector_store.similarity_search(
+            query=question, k=5, namespace="epstein-docs"
+        )
+
+    return results
 # vector_store=load_vector_store()
 # print(retreive(vector_store,"How does the testimony describe the relationship or frequency of contact between Jeffrey Epstein and Ghislaine Maxwell?"))
 
