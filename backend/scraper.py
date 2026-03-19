@@ -256,7 +256,7 @@ def process_pdf(pdf_info:dict,vector_store)->bool:
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
-def run_scraper(dataset_pages:list[str]):
+def run_scraper(dataset_pages:list[str] | None):
     """
     Main entry point.
     Scrapes all dataset pages, processes each PDF one at a time.
