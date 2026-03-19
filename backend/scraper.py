@@ -275,8 +275,9 @@ def run_scraper():
             continue
         for pdf_info in tqdm(pdf_links,desc=f"Processing {page_url}!.."):
             filename=pdf_info["filename"]
+            url=pdf_info["url"]
             #Skip if aldready processed (stored in postgres)
-            if is_aldready_processed(filename):
+            if is_aldready_processed(filename) or is_aldready_processed(page_url):
                 total_skipped+=1
                 continue
             #process the current pdf
