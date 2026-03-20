@@ -28,24 +28,26 @@ def save_pdf_record(filename:str,url:str,dataset:str,chunk_count:int,char_count:
         "chunk_count":chunk_count,
         "char_count":char_count
     }).execute()
-def save_query(question:str,answer:str,sources:str,namespace:str):
-        supabase.table("query_history").insert({
-            "question": question,
-            "answer": answer,
-            "sources": json.dump(sources) if not isinstance(sources) else sources,
-            "namespace": namespace,
-        }).execute()
-def fetch_history(limit:int=10)->list:
-    res=supabase.table("query_history").select("*").order("id",desc=True).limit(limit).execute()
-    return [{
-        "id": r["id"],
-        "question": r["question"],
-        "answer": r["answer"],
-        "sources": json.loads(r["sources" or "[]"]),
-        "namespace": r["namespace"],
-        "created_at": r["created_at"]
-    }
-    for r in res]
+def save_query(question: str, answer: str, sources: str, namespace: str):
+    supabase.table("query_history").insert({
+        "question":  question,
+        "answer":    answer,
+        "sources":   json.dumps(sources) if not isinstance(sources, str) else sources,  
+        "namespace": namespace,
+    }).execute()
+def fetch_history(limit: int = 10) -> list:
+    res = supabase.table("query_history").select("*").order("id", desc=True).limit(limit).execute()
+    return [
+        {
+            "id":         r["id"],
+            "question":   r["question"],
+            "answer":     r["answer"],
+            "sources":    json.loads(r["sources"] or "[]"),  
+            "namespace":  r["namespace"],
+            "created_at": r["created_at"],
+        }
+        for r in res.data  
+    ]
 def get_stats() -> dict:
     pdfs   = supabase.table("processed_pdfs").select("id", count="exact").execute()
     chunks = supabase.table("processed_pdfs").select("chunk_count").execute()

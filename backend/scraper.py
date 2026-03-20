@@ -43,8 +43,8 @@ DATASET_PAGES = [
     # "https://www.justice.gov/epstein/doj-disclosures/data-set-1-files",
     # "https://www.justice.gov/epstein/doj-disclosures/data-set-2-files",
     # "https://www.justice.gov/epstein/doj-disclosures/data-set-3-files",
-    "https://www.justice.gov/epstein/doj-disclosures/data-set-4-files",
-    "https://www.justice.gov/epstein/doj-disclosures/data-set-5-files",
+    # "https://www.justice.gov/epstein/doj-disclosures/data-set-4-files",
+    # "https://www.justice.gov/epstein/doj-disclosures/data-set-5-files",
     "https://www.justice.gov/epstein/doj-disclosures/data-set-6-files",
     "https://www.justice.gov/epstein/doj-disclosures/data-set-7-files",
     "https://www.justice.gov/epstein/doj-disclosures/data-set-8-files",
@@ -215,6 +215,36 @@ def download_pdf(url: str) -> str | None:
         return None
 # print(download_pdf("https://www.justice.gov/epstein/files/DataSet%204/EFTA00008320.pdf"))
 #download test passed
+from time import sleep
+
+def embed_with_retry(vector_store, texts, metadatas, namespace, max_retries=5):
+    """Upload chunks with exponential backoff on rate limit."""
+    batch_size = 25  # smaller batches = less likely to hit quota
+
+    for i in range(0, len(texts), batch_size):
+        batch_texts     = texts[i:i+batch_size]
+        batch_metadatas = metadatas[i:i+batch_size]
+
+        for attempt in range(max_retries):
+            try:
+                vector_store.add_texts(
+                    texts=batch_texts,
+                    metadatas=batch_metadatas,
+                    namespace=namespace
+                )
+                print(f"    ✓ Batch {i//batch_size + 1}: {len(batch_texts)} chunks pushed")
+                sleep(5)  # polite delay between every batch
+                break      # success — move to next batch
+
+            except Exception as e:
+                if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                    wait = 60 * (attempt + 1)  # 60s, 120s, 180s...
+                    print(f"    ⏳ Rate limited — waiting {wait}s (attempt {attempt+1}/{max_retries})")
+                    sleep(wait)
+                else:
+                    raise  # non-rate-limit error — re-raise immediately
+        else:
+            raise Exception(f"Failed after {max_retries} retries on batch {i//batch_size + 1}")
 def process_pdf(pdf_info:dict,vector_store)->bool:
     """
     Full pipeline for one PDF:
@@ -237,12 +267,9 @@ def process_pdf(pdf_info:dict,vector_store)->bool:
         #chunk text
         chunk_data=chunk_text(raw_text,filename,url,dataset)
         texts=[c["text"] for c in chunk_data]
-        metadatas=[c["metadatas"] for c in chunk_data]
-        vector_store.add(
-            texts=texts,
-            metadatas=metadatas,
-            namespace=NAMESPACE
-        )
+        metadatas=[c["metadata"] for c in chunk_data]
+        embed_with_retry(vector_store, texts, metadatas, NAMESPACE)
+        print(f"    ✓ Pushed {len(texts)} chunks to Pinecone")
         save_pdf_record(
             filename=filename,
             url=url,
@@ -253,7 +280,9 @@ def process_pdf(pdf_info:dict,vector_store)->bool:
         return True
 
     except Exception as e:
+        import traceback
         print(f"    ✗ Processing error: {e}")
+        traceback.print_exc()  # ← add this to see full traceback
         return False
     finally:
         if os.path.exists(tmp_path):
@@ -280,7 +309,7 @@ def run_scraper(dataset_pages:list[str] | None):
             filename=pdf_info["filename"]
             url=pdf_info["url"]
             #Skip if aldready processed (stored in postgres)
-            if is_aldready_processed(filename) or is_aldready_processed(page_url):
+            if is_aldready_processed(filename):
                 total_skipped+=1
                 continue
             #process the current pdf

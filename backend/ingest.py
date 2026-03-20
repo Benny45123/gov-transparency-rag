@@ -74,6 +74,8 @@ def extract_text_from_pdf(pdf_path: str)->str:
                     print(f"     ✓ OCR page {page_num + 1}: {len(ocr_text)} chars")
                 else:
                     print(f"     ⚠ Page {page_num + 1}: no text found even with OCR")
+            except pytesseract.TesseractNotFoundError:
+                pass 
             except Exception as e:
                 print(f"     ⚠ Error processing page {page_num + 1} with OCR: {e}")
     doc.close()
@@ -116,22 +118,30 @@ def chunk_text(text: str,filename: str,source_url:str,dataset:str)->list[dict]:
         })
 
     return chunks
-def setup_pinecone_index(pc:Pinecone):
-    pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    
-    # 2. Use .names() to get the list of strings to compare against
+def setup_pinecone_index(pc: Pinecone) -> PineconeVectorStore:
     existing_indexes = pc.list_indexes().names()
-    
+
     if index_name not in existing_indexes:
         print(f"Creating index {index_name}...")
         pc.create_index(
             name=index_name,
-            dimension=3072, 
+            dimension=3072,
             metric="cosine",
             spec=ServerlessSpec(cloud="aws", region="us-east-1")
         )
+        sleep(2)  # wait for index to be ready
     else:
         print(f"Index {index_name} already exists.")
+
+    embedding_model = GoogleGenerativeAIEmbeddings(
+        model="gemini-embedding-001",
+        google_api_key=os.getenv("GEMINI_API_KEY")
+    )
+
+    return PineconeVectorStore(       # ← must return this
+        index_name=index_name,
+        embedding=embedding_model,
+    )
 def main():
     for key in ["GEMINI_API_KEY","PINECONE_API_KEY"]:
         if not os.getenv(key):

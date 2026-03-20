@@ -16,3 +16,4 @@ asyncpg
 # uv pip install curl-cffi --only-binary=:all: --break-system-packages
 # browser-cookie3
 tabulate
+duckdb

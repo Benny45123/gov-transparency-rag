@@ -115,7 +115,7 @@ def generate_answer(prompt:str)->str:
     llm=ChatGoogleGenerativeAI(
         model=MODEL_NAME,
         google_api_key=os.getenv("GEMINI_API_KEY"),
-        temperature=0.1,
+        temperature=0.5,
         safety_settings={
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
             HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
@@ -167,6 +167,7 @@ if __name__=="__main__":
         "Who did Epstein fly on his private jet?",
         "What locations did Epstein visit frequently?",
         "Who were Epstein's known associates?",
+        "give me log files of epstein"
     ]
     for question in test_questions:
         print(f"\n{'─'*60}")
