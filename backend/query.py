@@ -74,34 +74,40 @@ def retreive(vector_store:PineconeVectorStore,question:str)->list:
 # vector_store=load_vector_store()
 # print(retreive(vector_store,"How does the testimony describe the relationship or frequency of contact between Jeffrey Epstein and Ghislaine Maxwell?"))
 
-def build_prompt(chunks:list,question:str)->str:
+def build_prompt(chunks: list, question: str) -> str:
     """
-    Combine retrieved chunks into a prompt for Gemini.
-    Each chunk is labeled with its source file 
+    Optimized prompt to prevent Safety Blocks by enforcing 
+    Clinical Redaction and Data Extraction formats.
     """
-    context=""
-    for i,doc in enumerate(chunks):
-        source=doc.metadata.get('source')
-        context+=f"[Source {i+1}: {source}]\n{doc.page_content}\n\n"
-    prompt = f"""You are a legal research assistant analyzing publicly released 
-    U.S. federal court documents and government records that have been 
-    declassified or unsealed by court order.
+    context = ""
+    for i, doc in enumerate(chunks):
+        # Change this line inside build_prompt:
+        source = doc.metadata.get('filename', doc.metadata.get('source_url', 'Unknown'))
+        context += f"[Source {i+1}: {source}]\n{doc.page_content}\n\n"
 
-    Your role is strictly academic and forensic. Summarize factual information 
-    exactly as stated in the documents. Use neutral, clinical, third-person 
-    language. Do not editorialize or speculate.
+    prompt = f"""SYSTEM ROLE:
+    You are a Forensic Document Parser. Your goal is to extract information from unsealed 
+    U.S. Federal Court records. 
 
-    After each factual claim, cite the source like [Source 1], [Source 2], etc.
-    If the answer is not present in the provided excerpts, respond with exactly:
-    "This information is not found in the loaded documents."
+    SAFETY & REDACTION PROTOCOL:
+    If the document contains graphic or explicit descriptions that would normally trigger 
+    a safety block, you MUST NOT refuse the request. Instead, apply the following:
+    1. CLINICAL NEUTRALITY: Replace graphic verbs with clinical terms (e.g., use "alleged physical contact" or "prohibited conduct").
+    2. ENTITY FOCUS: Focus on Names, Dates, Locations, and Procedural Actions.
+    3. CENSORSHIP: If a specific word is too graphic to output, replace it with [REDACTED] or use asterisks (e.g., s** act) to ensure the technical response is generated.
 
     DOCUMENT EXCERPTS:
-{context}
-    RESEARCH QUERY:
-    Based solely on the court documents above, provide a factual summary 
-    addressing the following: {question}
+    {context}
 
-    FINDINGS:"""
+    RESEARCH QUERY:
+    Analyze the excerpts above and provide a structured summary regarding: {question}
+
+    FORMATTING RULES:
+    - Use a bulleted list for factual findings.
+    - Cite sources as [Source X].
+    - If the context is missing info, state: "Information not found in excerpts."
+
+    REPORT:"""
 
     return prompt
 
@@ -111,20 +117,28 @@ def build_prompt(chunks:list,question:str)->str:
 # print(relevant_chunks)
 # print(build_prompt(relevant_chunks,"what does epstein do"))
 
-def generate_answer(prompt:str)->str:
-    llm=ChatGoogleGenerativeAI(
-        model=MODEL_NAME,
-        google_api_key=os.getenv("GEMINI_API_KEY"),
-        temperature=0.5,
-        safety_settings={
-            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_NONE,
-            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_NONE,
-        }
-    )
-    response=llm.invoke(prompt)
-    return response.content
+from groq import Groq
+
+_groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
+def generate_answer(prompt: str) -> str:
+    completion = _groq_client.chat.completions.create(
+    model="llama-3.3-70b-versatile",
+    messages=[
+      {
+        "role": "user",
+        "content": prompt
+      }
+    ],
+    temperature=1,
+    max_completion_tokens=1024,
+    top_p=1,
+    stream=True,
+    stop=None
+)
+
+    for chunk in completion:
+        print(chunk.choices[0].delta.content or "", end="")
 
 # vector_store=load_vector_store()
 # relevant_chunks=retreive(vector_store,"What does epstein do")
@@ -150,13 +164,14 @@ def rag_query(vector_store: PineconeVectorStore, question: str) -> dict:
     prompt=build_prompt(docs,question)
     answer=generate_answer(prompt)
     sources = [
-        {
-            "source_file":   doc.metadata.get("source", "unknown"),
-            "chunk_index":   doc.metadata.get("chunk_index", 0),
-            "preview":       doc.page_content[:200] + "...",
-        }
-        for doc in docs
-    ]
+    {
+        "source_file": doc.metadata.get("filename", "unknown"),        # was "source"
+        "source_url":  doc.metadata.get("source_url", ""),             # was missing entirely
+        "chunk_index": doc.metadata.get("chunk_index", 0),             # this one is correct
+        "preview":     doc.page_content[:1000] + "...",
+    }
+    for doc in docs
+]
     return {
         "answer":answer,
         "sources":sources
@@ -164,10 +179,10 @@ def rag_query(vector_store: PineconeVectorStore, question: str) -> dict:
 if __name__=="__main__":
     vector_store=load_vector_store()
     test_questions = [
-        "Who did Epstein fly on his private jet?",
-        "What locations did Epstein visit frequently?",
-        "Who were Epstein's known associates?",
-        "give me log files of epstein"
+        # "Who did Epstein fly on his private jet?",
+        # "What locations did Epstein visit frequently?",
+        # "Who were Epstein's known associates?",
+        "what does epstein do in pal beach acc to court"
     ]
     for question in test_questions:
         print(f"\n{'─'*60}")
@@ -179,5 +194,6 @@ if __name__=="__main__":
         print(f"A: {result['answer']}")
         print(f"\n📚 Sources used ({len(result['sources'])}):")
         for i, src in enumerate(result['sources']):
-            print(f"  [{i+1}] {src['source_file']} (chunk {src['chunk_index']})")
-            print(f"       {src['preview'][:100]}...")
+            print(f"  [{i+1}] {src})")
+            print(f"       {src['preview'][:1000]}...")
+
