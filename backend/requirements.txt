@@ -1,7 +1,11 @@
 langchain-text-splitters
 langchain-google-genai
 langchain-pinecone
+langchain-community
+langchain-huggingface 
+huggingface-hub
 langchain
+langchain-core
 pinecone
 pymupdf
 tqdm
@@ -17,3 +21,5 @@ asyncpg
 # browser-cookie3
 tabulate
 duckdb
+groq
+pandas

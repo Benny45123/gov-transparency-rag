@@ -21,13 +21,13 @@ def is_aldready_processed(filename:str)->bool:
         
 
 def save_pdf_record(filename:str,url:str,dataset:str,chunk_count:int,char_count:int):
-    supabase.table("processed_pdfs").insert({
-        "filename":filename,
-        "url":url,
-        "dataset":dataset,
-        "chunk_count":chunk_count,
-        "char_count":char_count
-    }).execute()
+    supabase.table("processed_pdfs").upsert({
+        "filename":    filename,
+        "url":         url,
+        "dataset":     dataset,
+        "chunk_count": chunk_count,
+        "char_count":  char_count,
+    }, on_conflict="filename").execute()
 def save_query(question: str, answer: str, sources: str, namespace: str):
     supabase.table("query_history").insert({
         "question":  question,
@@ -59,3 +59,4 @@ def get_stats() -> dict:
         "total_queries":  queries.count or 0,
     }
 # print(get_stats())
+# save_pdf_record("xyz","xyz.pdf","epstein",10,20)
