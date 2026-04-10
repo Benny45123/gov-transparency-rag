@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from supabase import create_client,Client
 load_dotenv()
 supabase: Client=create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_KEY")
+    os.getenv("SUPABASE_URL") or "",
+    os.getenv("SUPABASE_KEY") or ""
 )
 def get_db():
     yield supabase
@@ -28,7 +28,7 @@ def save_pdf_record(filename:str,url:str,dataset:str,chunk_count:int,char_count:
         "chunk_count": chunk_count,
         "char_count":  char_count,
     }, on_conflict="filename").execute()
-def save_query(question: str, answer: str, sources: str, namespace: str):
+def save_query(question: str, answer: str, sources: str, namespace: str="epstein-docs"):
     supabase.table("query_history").insert({
         "question":  question,
         "answer":    answer,
