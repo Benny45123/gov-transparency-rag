@@ -23,3 +23,6 @@ tabulate
 duckdb
 groq
 pandas
+cohere
+pinecone-text
+redis
