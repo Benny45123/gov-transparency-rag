@@ -22,8 +22,9 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 
+from pydantic import SecretStr
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
 from langchain_core.documents import Document
@@ -44,7 +45,7 @@ class RetrievedChunk:
     source_url: str
     chunk_index: int
     score: float = 0.0          # filled in by reranker
-    metadata: dict = None       # full raw metadata
+    metadata: Optional[dict] = None       # full raw metadata
 
     @classmethod
     def from_document(cls, doc: Document, score: float = 0.0) -> "RetrievedChunk":
@@ -100,7 +101,6 @@ def _detect_query_type(question: str) -> Optional[dict]:
 
 
 # ── Vector store factory ───────────────────────────────────────────────────────
-
 def build_vector_store() -> PineconeVectorStore:
     """
     Build and return a PineconeVectorStore connected to the existing index.
@@ -108,8 +108,9 @@ def build_vector_store() -> PineconeVectorStore:
     """
     embeddings = GoogleGenerativeAIEmbeddings(
         model=cfg.pinecone.embedding_model,
-        google_api_key=cfg.gemini_api_key,
+        api_key=SecretStr(cfg.gemini_api_key),
     )
+
     store = PineconeVectorStore.from_existing_index(
         index_name=cfg.pinecone.index_name,
         embedding=embeddings,
@@ -141,7 +142,7 @@ def retrieve_chunks(
     meta_filter = _detect_query_type(question)
 
     def _search(f: dict | None) -> list[Document]:
-        kwargs = dict(query=question, k=top_k, namespace=ns)
+        kwargs: dict[str, Any] = dict(query=question, k=top_k, namespace=ns)
         if f:
             kwargs["filter"] = f
         return store.similarity_search(**kwargs)

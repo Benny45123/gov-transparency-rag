@@ -15,7 +15,7 @@ class PineconeConfig:
     index_name: str = "gov-transparency-index"
     namespace: str = "epstein-docs"
     top_k: int = 150  #fetching from pinecone, we get top 150 results, then we rerank them and trim to top_k_final before sending to the LLM
-    top_k_final: int = 10
+    top_k_final: int = 5
     embedding_model: str = "gemini-embedding-001"
 
 @dataclass(frozen=True)

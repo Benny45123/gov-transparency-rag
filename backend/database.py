@@ -47,6 +47,9 @@ from supabase import create_client, Client
 
 from config import cfg
 from observability import get_logger
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 log = get_logger(__name__)
 
@@ -58,19 +61,24 @@ _supabase: Client | None = None
 
 def _get_client() -> Client | None:
     global _supabase
+
     if _supabase is not None:
         return _supabase
-    url = cfg.supabase_url
-    key = cfg.supabase_key
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+
     if not url or not key:
-        log.warning("SUPABASE_URL / SUPABASE_KEY not set — DB persistence disabled")
+        log.warning("SUPABASE_URL or SUPABASE_KEY missing")
         return None
+
     try:
         _supabase = create_client(url, key)
         log.info("Supabase client initialised")
+        return _supabase
     except Exception as e:
         log.error("Supabase init failed: %s", e)
-    return _supabase
+        return None
 
 
 # ── processed_pdfs ────────────────────────────────────────────────────────────
@@ -181,17 +189,19 @@ def fetch_history(limit: int = 10, namespace: str | None = None) -> list[dict]:
         res = q.execute()
         return [
             {
-                "id":         r["id"],
-                "question":   r["question"],
-                "answer":     r["answer"],
+                "id":         r.get("id"),
+                "question":   r.get("question"),
+                "answer":     r.get("answer"),
                 "sources":    _safe_json_loads(r.get("sources") or "[]"),
-                "namespace":  r["namespace"],
+                "namespace":  r.get("namespace"),
                 "cached":     r.get("cached", False),
                 "error":      r.get("error"),
-                "created_at": r["created_at"],
+                "created_at": r.get("created_at"),
             }
             for r in res.data
+            if isinstance(r, dict) 
         ]
+        
     except Exception as e:
         log.error("fetch_history error: %s", e)
         return []

@@ -32,6 +32,7 @@ from query import RAGResponse, rag_query, rag_query_stream
 from retriever import build_vector_store
 from observability import get_logger
 
+
 log = get_logger("api")
 
 # ── Application state ──────────────────────────────────────────────────────────
@@ -54,7 +55,14 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
-
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_store():
     if _store is None:
